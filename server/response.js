@@ -25,9 +25,9 @@ http.createServer(function(req, res) {
 		res.writeHead(200, {
 			"content-type":"text/html"
 		});
-		var mess="欢迎访问！";
+		var mess="欢迎访问";
 		if(Object.keys(body).length>0)
-			mess="服务端已经获取到你发送的数据！"
+			mess="服务端已经获取到你发送的数据"
 		res.end(mess);
 	});
 }).listen(666);

@@ -22,17 +22,20 @@ class Request {
 		var that=this;
 		return new Promise(function(resolve, reject) {
 			var parser=new ResponseParser();
+			var parserBody=new ResponseBodyParser();
 			if(connect) connect.write(info);
 			else {
 				connect=net.createConnection({
 					host:that["headers"]["host"],
 					port:that["headers"]["port"]
-				}, ()=>{
+				}, ()=> {
 					connect.write(info);
 				});
 				connect.on("data", function(data) {
 					data=data+"";
 					var res=parser.receive(data);
+					/* if(res.headers["Transfer-Encoding"]=="chunked")
+						res.body=parserBody.receive(res.body); */
 					console.log(res);
 					connect.end();
 				});
@@ -93,20 +96,30 @@ class Request {
 class ResponseParser {
 	constructor() {
 		this.line="";
-		this.headers="";
+		this.statusCode="";
+		this.statusText="";
+		this.headers={};
+		this.headerKey="";
+		this.headerValue="";
 		this.body="";
 		this.RES_LINE=0;
+		this.RES_LINE_STATUS_CODE=0x10;
+		this.RES_LINE_STATUS_TEXT=0x11;
 		this.RES_HEADER=1;
-		this.RES_HEADRE_END=11;
+		this.RES_HEADRE_SPACE=10;
+		this.RES_HEADRE_VALUE=11;
+		this.RES_HEADRE_END=12;
 		this.RES_BODY=2;
 		this.STATUS=this.RES_LINE;
 	}
 	receive(string) {
+		console.log(string);
 		for(let i=0; i<string.length; i++)
 			this.receiveChar(string[i]);
-		this.headers=`{${this.headers}}`;
 		return {
 			line:this.line,
+			statusCode:this.statusCode,
+			statusText:this.statusText,
 			headers:this.headers,
 			body:this.body
 		};
@@ -115,36 +128,77 @@ class ResponseParser {
 		if(c=="\r") return;
 		if(this.STATUS==this.RES_LINE) {
 			if(c=="\n") {
-				this.STATUS=this.RES_HEADER;
+				this.STATUS=this.RES_HEADRE_END;
 				return;
 			}
 			this.line+=c;
+			if(c==" ") {
+				this.STATUS=this.RES_LINE_STATUS_CODE;
+				return;
+			}
+		}
+		if(this.STATUS==this.RES_LINE_STATUS_CODE) {
+			this.line+=c;
+			if(c==" ") {
+				this.STATUS=this.RES_LINE_STATUS_TEXT;
+				return;
+			}
+			this.statusCode+=c;
+		}
+		if(this.STATUS==this.RES_LINE_STATUS_TEXT) {
+			if(c=="\n") {
+				this.STATUS=this.RES_HEADRE_END;
+				return;
+			}
+			this.line+=c;
+			this.statusText+=c;
 		}
 		if(this.STATUS==this.RES_HEADER) {
 			if(c=="\n") {
 				this.STATUS=this.RES_HEADRE_END;
-				this.headers+=",";
 				return;
 			}
-			if(c==" ") return;
-			this.headers+=c;
+			if(c==":") {
+				this.STATUS=this.RES_HEADRE_SPACE;
+				return;
+			}
+			this.headerKey+=c;
 		}
-		if(this.STATUS==this.RES_HEADRE_END)
+		if(this.STATUS==this.RES_HEADRE_END) {
 			if(c=="\n") {
 				this.STATUS=this.RES_BODY;
 				return;
-			} else {
-				this.headers+=c;
-				this.STATUS=this.RES_HEADER;
+			}
+			this.headerKey+=c;
+			this.STATUS=this.RES_HEADER;
+		}
+		if(this.STATUS==this.RES_HEADRE_SPACE) {
+			if(c!=" ") {
+				this.STATUS=this.RES_HEADER_VALUE;
+				this.headerValue+=c;
 				return;
 			}
+		}
+		if(this.STATUS==this.RES_HEADER_VALUE) {
+			if(c=="\n") {
+				this.STATUS=this.RES_HEADRE_END;
+				this.headers[this.headerKey]=this.headerValue;
+				this.headerKey=this.headerValue="";
+				return;
+			}
+			this.headerValue+=c;
+		}
 		if(this.STATUS==this.RES_BODY)
 			this.body+=c;
 	}
 }
 
+//响应主体内容解析类
+class ResponseBodyParser {
+	
+}
+
 var r=new Request({
-	method:"get",
 	headers:{
 		port:666
 		//"content-type":"application/json"
