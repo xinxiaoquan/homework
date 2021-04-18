@@ -22,7 +22,6 @@ class Request {
 		var that=this;
 		return new Promise(function(resolve, reject) {
 			var parser=new ResponseParser();
-			var parserBody=new ResponseBodyParser();
 			if(connect) connect.write(info);
 			else {
 				connect=net.createConnection({
@@ -34,8 +33,6 @@ class Request {
 				connect.on("data", function(data) {
 					data=data+"";
 					var res=parser.receive(data);
-					/* if(res.headers["Transfer-Encoding"]=="chunked")
-						res.body=parserBody.receive(res.body); */
 					console.log(res);
 					connect.end();
 				});
@@ -102,6 +99,7 @@ class ResponseParser {
 		this.headerKey="";
 		this.headerValue="";
 		this.body="";
+		this.parserBody=null;
 		this.RES_LINE=0;
 		this.RES_LINE_STATUS_CODE=0x10;
 		this.RES_LINE_STATUS_TEXT=0x11;
@@ -116,6 +114,8 @@ class ResponseParser {
 		console.log(string);
 		for(let i=0; i<string.length; i++)
 			this.receiveChar(string[i]);
+		if(this.parserBody)
+			this.body=this.parserBody.body;
 		return {
 			line:this.line,
 			statusCode:this.statusCode,
@@ -167,6 +167,8 @@ class ResponseParser {
 		if(this.STATUS==this.RES_HEADRE_END) {
 			if(c=="\n") {
 				this.STATUS=this.RES_BODY;
+				if(this.headers["Transfer-Encoding"]=="chunked")
+					this.parserBody=new ResponseBodyParser();
 				return;
 			}
 			this.headerKey+=c;
@@ -189,12 +191,53 @@ class ResponseParser {
 			this.headerValue+=c;
 		}
 		if(this.STATUS==this.RES_BODY)
-			this.body+=c;
+			if(this.parserBody)
+				this.parserBody.receiveChar(c);
 	}
 }
 
 //响应主体内容解析类
 class ResponseBodyParser {
+	constructor() {
+		this.length="";
+		this.body="";
+		this.START_LINE=0;
+		this.BODY_CONTENT=1;
+		this.END=2;
+		this.STATUS=this.START_LINE;
+	}
+	receiveChar(c) {
+		if(c=="\r") return;
+		if(this.STATUS==this.START_LINE) {
+			if(c=="\n") {
+				this.STATUS=this.BODY_CONTENT;
+				this.length=parseInt(this.length, 16);
+				if(this.length==0)
+					this.STATUS=this.END;
+				return;
+			}
+			this.length+=c;
+		}
+		if(this.STATUS==this.BODY_CONTENT) {
+			this.body+=c;
+			this.length=this.length-this.getByte(c);
+			if(this.length==0) {
+				this.STATUS=this.END;
+				return;
+			}
+		}
+	}
+	//解析一个字符占多少字节
+	getByte(c) {
+		if(c.charCodeAt(0)<=0x007f) return 1;
+		if(c.charCodeAt(0)<=0x07ff) return 2;
+		if(c.charCodeAt(0)<=0xffff) return 3;
+		return 4;
+	}
+}
+
+//实验：用函数状态机实现响应报文解析
+class ResponseParserFun {
 	
 }
 
