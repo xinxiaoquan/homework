@@ -21,7 +21,8 @@ class Request {
 		var info=this.formatHTTP();
 		var that=this;
 		return new Promise(function(resolve, reject) {
-			var parser=new ResponseParser();
+			//var parser=new ResponseParser();
+			var parser=new ResponseParserFun();
 			if(connect) connect.write(info);
 			else {
 				connect=net.createConnection({
@@ -238,7 +239,94 @@ class ResponseBodyParser {
 
 //实验：用函数状态机实现响应报文解析
 class ResponseParserFun {
-	
+	constructor() {
+		this.line="";
+		this.statusCode="";
+		this.statusText="";
+		this.headers={};
+		this.headerKey="";
+		this.headerValue="";
+		this.body="";
+		this.parserBody=null;
+		this.resLine=function(c) {
+			if(c=="\n")
+				return this.resHeaderEnd;
+			this.line+=c;
+			if(c==" ")
+				return this.resLineStatusCode;
+			return this.resLine;
+		}
+		this.resLineStatusCode=function(c) {
+			this.line+=c;
+			if(c==" ")
+				return this.resLineStatusText;
+			this.statusCode+=c;
+			return this.resLineStatusCode;
+		}
+		this.resLineStatusText=function(c) {
+			if(c=="\n")
+				return this.resHeaderEnd;
+			this.line+=c;
+			this.statusText+=c;
+			return this.resLineStatusText;
+		}
+		this.resHeader=function(c) {
+			if(c=="\n")
+				return this.resHeaderEnd;
+			if(c==":")
+				return this.resHeaderSpace;
+			this.headerKey+=c;
+			return this.resHeader;
+		}
+		this.resHeaderSpace=function(c) {
+			if(c!=" ") {
+				this.headerValue+=c;
+				return this.resHeaderValue;
+			}
+			return this.resHeaderSpace;
+		}
+		this.resHeaderValue=function(c) {
+			if(c=="\n") {
+				this.headers[this.headerKey]=this.headerValue;
+				this.headerKey=this.headerValue="";
+				return this.resHeaderEnd;
+			}
+			this.headerValue+=c;
+			return this.resHeaderValue;
+		}
+		this.resHeaderEnd=function(c) {
+			if(c=="\n") {
+				if(this.headers["Transfer-Encoding"]=="chunked")
+					this.parserBody=new ResponseBodyParser();
+				return this.resBody;
+			}
+			return this.resHeader(c);
+		}
+		this.resBody=function(c) {
+			if(this.parserBody)
+				this.parserBody.receiveChar(c);
+			return this.resBody;
+		}
+		this.status=this.resLine;
+	}
+	receive(string) {
+		for(let i=0; i<string.length; i++)
+			this.receiveChar(string[i]);
+		if(this.parserBody)
+			this.body=this.parserBody.body;
+		return {
+			line:this.line,
+			statusCode:this.statusCode,
+			statusText:this.statusText,
+			headers:this.headers,
+			body:this.body
+		};
+	}
+	receiveChar(c) {
+		if(c=="\r") return;
+		//console.log(this.status)
+		this.status=this.status(c);
+	}
 }
 
 var r=new Request({
