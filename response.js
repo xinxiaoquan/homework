@@ -1,6 +1,9 @@
 //服务端，返回HTTP响应
 
 const http=require("http");
+const fs=require("fs");
+var htmlFile=fs.readFileSync("code.html");
+
 http.createServer(function(req, res) {
 	//postData是存储post传输过来的数据
 	var postData="", body={};
@@ -25,10 +28,9 @@ http.createServer(function(req, res) {
 		res.writeHead(200, {
 			"content-type":"text/html"
 		});
-		var mess="欢迎访问";
 		if(Object.keys(body).length>0)
-			mess="服务端已经获取到你发送的数据"
-		res.end(mess);
+			htmlFile+="<!--服务端已经获取到你发送的数据-->"
+		res.end(htmlFile);
 	});
 }).listen(666);
 
