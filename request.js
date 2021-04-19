@@ -97,9 +97,7 @@ var r=new Request({
 		//"content-type":"application/json"
 	},
 	body:{
-		name:"耿康康",
-		sex:"男",
-		age:"二十三"
+		mess:"你好"
 	}
 });
 r.send();

@@ -147,8 +147,101 @@ class ResponseBodyParser {
 
 //html数据解析类
 class HtmlParser {
-	parserHtml() {
-		
+	constructor() {
+		//空白字符合集
+		this.spaceChar=["\r","\n","\t"," ","\f"];
+		//错误代码合集
+		this.errCode={
+			ERRER01:"结束标签有不合法的空白字符！",
+			ERRER02:"结束标签没有闭合！",
+			ERRER03:"标签无引号包裹的属性值前面不能有非法的空白字符",
+		}
+		this.status=this.data;
+		this.EOF=Symbol("EOF");
+		this.data=function(c) {
+			if(c=="<")
+				return this.tagNameStart;
+			if(c==this.EOF)
+				return this.end;
+			return this.data;
+		}
+		this.tagNameStart=function(c) {
+			if(c=="/")
+				return this.tagNameEnd;
+			if(this.isSpace(c))
+				return this.attrKey;
+			if(c==">") return this.data;
+			return this.tagNameStart;
+		}
+		this.tagNameEnd=function(c) {
+			if(this.isSpace(c))
+				return this.err(this.returnErr("ERRER01"));
+			if(this.isChar(c))
+				return this.tagNameEnd;
+			if(c==this.EOF)
+				return this.err(this.returnErr("ERRER01"));
+			if(c==">")
+				return this.data;
+		}
+		this.attrKey=function(c) {
+			if(this.isChar(c)) {
+				
+			}
+			/* if(this.isSpace(c))
+				return this.attrKey; */
+			if(c=="=")
+				return this.attrValue;
+			return this.attrKey;
+		}
+		this.attrValue=function(c) {
+			if(this.isQuot(c))
+				return this.attrValuePlus;
+			if(this.isSpace(c))
+				return this.tagNameStart;
+			return attrValue;
+		}
+		this.attrValuePlus=function(c) {
+			if(this.isQuot(c)) 
+				return tagNameStart;
+			return this.attrValuePlus;
+		}
+		this.err=function(mess) {
+			console.log(mess);
+			return this.end;
+		}
+		this.end=function(c) {
+			return this.end;
+		}
+	}
+	parserHtml(string) {
+		for(var i=0; i<string.length; i++)
+			this.status=this.status(string[i]);
+	}
+	//判断是不是空白字符
+	isSpace(c) {
+		for(let s of this.spaceChar)
+			if(c==s) return true;
+		return false;
+	}
+	//判断是不是一个字母（正则中的[a-zA-Z]）
+	isChar(c) {
+		var code=c.charCodeAt(0);
+		if((code>=65 && code<=90) ||
+			(code>=97 && code<=122))
+			return true;
+		return false;
+	}
+	//判断是不是引号
+	isQuot(c) {
+		if(c=="\"" || c=="'")
+			return true;
+		return false;
+	}
+	//返回错误信息
+	returnErr(code) {
+		if(this.errCode[code])
+			return `(${code})${this.errCode[code]}\r\n`;
+		return "未知错误！\r\n";
 	}
 }
 
