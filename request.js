@@ -91,7 +91,7 @@ class Request {
 	
 }
 
-var r=new Request({
+/* var r=new Request({
 	headers:{
 		port:666
 		//"content-type":"application/json"
@@ -100,9 +100,12 @@ var r=new Request({
 		mess:"你好"
 	}
 });
-r.send();
+r.send(); */
 
-
+var p=new parserJS.HtmlParser();
+p.parserHtml(
+`<div id="box">你好<img src="1.jpg" class="a1 b2" /></div>`
+);
 
 
 

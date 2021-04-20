@@ -145,7 +145,7 @@ class ResponseBodyParser {
 	}
 }
 
-//html数据解析类
+//html数据解析类（解析为DOM）
 class HtmlParser {
 	constructor() {
 		//空白字符合集
@@ -153,57 +153,179 @@ class HtmlParser {
 		//错误代码合集
 		this.errCode={
 			ERRER01:"结束标签有不合法的空白字符！",
-			ERRER02:"结束标签没有闭合！",
-			ERRER03:"标签无引号包裹的属性值前面不能有非法的空白字符",
+			ERRER04:"标签后不能紧跟非法的空白字符！",
+			ERRER05:"自封闭标签未结束！",
+			ERRER06:"标签名只能是字母！",
+			ERRER08:"属性键值错误！",
+			ERRER09:"属性值是非法的空白字符！",
 		}
-		this.status=this.data;
+		//临时存储节点类型
+		this.tokenType="";
+		//临时存储节点数据
+		this.tokenInner="";
+		//临时存储HTML属性
+		this.attrKeyData="";
+		//临时存储HTML属性值
+		this.attrValueData=""
+		//存储HTML属性
+		this.attrs={};
+		//存储节点
+		this.token={};
+		//HTML属性计数
+		this.attrNum=1;
+		//开始标签计数
+		this.startTagNum=1;
+		//结束标签计数
+		this.endTagNum=1;
+		//自封闭标签计数
+		this.selfColseTagNum=1;
+		//文本节点计数
+		this.textNodeNum=1;
 		this.EOF=Symbol("EOF");
 		this.data=function(c) {
-			if(c=="<")
-				return this.tagNameStart;
+			if(c=="<") {
+				this.tokenType="startTag";
+				return this.tagStart;
+			}
 			if(c==this.EOF)
 				return this.end;
-			return this.data;
+			this.tokenType="text";
+			return this.textNode(c);
 		}
-		this.tagNameStart=function(c) {
-			if(c=="/")
-				return this.tagNameEnd;
-			if(this.isSpace(c))
-				return this.attrKey;
-			if(c==">") return this.data;
-			return this.tagNameStart;
+		this.textNode=function(c) {
+			if(c=="<") {
+				this.handleNode();
+				return this.data(c);
+			}
+			this.tokenInner+=c;
+			return this.textNode;
 		}
-		this.tagNameEnd=function(c) {
+		this.tagStart=function(c) {
 			if(this.isSpace(c))
-				return this.err(this.returnErr("ERRER01"));
+				return this.err(this.returnErr("ERRER04"));
+			if(c=="/") {
+				this.tokenType="endTag";
+				return this.endTag;
+			}
 			if(this.isChar(c))
-				return this.tagNameEnd;
-			if(c==this.EOF)
+				return this.tagName(c);
+			return this.err(this.returnErr("ERRER06"));
+		}
+		//结束标签
+		this.endTag=function(c) {
+			if(this.isSpace(c))
 				return this.err(this.returnErr("ERRER01"));
-			if(c==">")
+			if(c==">") {
+				this.handleNode();
 				return this.data;
+			}
+			if(this.isChar(c)) {
+				this.tokenInner+=c;
+				return this.endTag;
+			}
+			return this.err(this.returnErr("ERRER06"));
+		}
+		this.tagName=function(c) {
+			//console.log(c);
+			if(this.isSpace(c))
+				return this.attrKeyStart;
+			if(c==">") {
+				this.handleNode();
+				return this.data;
+			}
+			if(c=="/") {
+				this.tokenType="selfColseTag";
+				return this.selfColseTag;
+			}
+			if(this.isChar(c)) {
+				this.tokenInner+=c;
+				return this.tagName;
+			}
+			return this.err(this.returnErr("ERRER06"));
+		}
+		//自封闭标签状态
+		this.selfColseTag=function(c) {
+			if(c==">") {
+				this.handleNode();
+				return this.data;
+			}
+			return this.err(this.returnErr("ERRER05"));
+		}
+		this.attrKeyStart=function(c) {
+			if(this.isSpace(c))
+				return this.attrKeyStart;
+			if(c=="=")
+				return this.err(this.returnErr("ERRER08"));
+			return this.attrKey(c);
 		}
 		this.attrKey=function(c) {
-			if(this.isChar(c)) {
-				
-			}
-			/* if(this.isSpace(c))
-				return this.attrKey; */
+			if(this.isSpace(c))
+				return this.attrKeyStart;
+			if(c==">" || c=="/") return this.tagName(c);
 			if(c=="=")
-				return this.attrValue;
+				return this.attrValueStart;
+			this.attrKeyData+=c;
 			return this.attrKey;
 		}
-		this.attrValue=function(c) {
-			if(this.isQuot(c))
-				return this.attrValuePlus;
+		this.attrValueStart=function(c) {
 			if(this.isSpace(c))
-				return this.tagNameStart;
-			return attrValue;
+				return this.err(this.returnErr("ERRER09"));
+			if(c=="\"")
+				return this.DQAttrValue;
+			if(c=="'")
+				return this.SQAttrValue;
+			return this.attrValue(c);
 		}
-		this.attrValuePlus=function(c) {
-			if(this.isQuot(c)) 
-				return tagNameStart;
-			return this.attrValuePlus;
+		this.attrValue=function(c) {
+			if(this.isSpace(c)) {
+				this.endAttrValue();
+				return this.attrKeyStart;
+			}
+			if(c==">" || c=="/") {
+				this.endAttrValue();
+				//console.log(this.attrs);
+				return this.tagName(c);
+			}
+			this.attrValueData+=c;
+			return this.attrValue;
+		}
+		this.DQAttrValue=function(c) {
+			if(c=="\"") {
+				this.endAttrValue();
+				return this.attrKeyStart;
+			}
+			this.attrValueData+=c;
+			return this.DQAttrValue;
+		}
+		this.SQAttrValue=function(c) {
+			if(c=="'") {
+				this.endAttrValue();
+				return this.attrKeyStart;
+			}
+			this.attrValueData+=c;
+			return this.SQAttrValue;
+		}
+		//结束属性值操作
+		this.endAttrValue=function() {
+			this.attrs[this.attrKeyData]=this.attrValueData;
+			this.attrKeyData="";
+			this.attrValueData="";
+			//return this.attrKeyStart;
+		}
+		//处理解析后节点
+		this.handleNode=function() {
+			this.token[this.tokenType+this.getNodeCount(this.tokenType)]
+				=this.tokenInner;
+			if(Object.keys(this.attrs).length>0) {
+				this.token["attr"+this.getNodeCount("attr")]
+					=this.attrs;
+				this.attrKeyData="";
+				this.attrValueData="";
+				this.attrs={};
+			}
+			this.tokenType="";
+			this.tokenInner="";
+			//console.log(this.token);
 		}
 		this.err=function(mess) {
 			console.log(mess);
@@ -212,10 +334,23 @@ class HtmlParser {
 		this.end=function(c) {
 			return this.end;
 		}
+		this.status=this.data;
 	}
+	//解析html数据传入的入口
 	parserHtml(string) {
+	//	console.log(this.status);
 		for(var i=0; i<string.length; i++)
 			this.status=this.status(string[i]);
+		console.log(this.token);
+	}
+	//计数函数，用于判断节点出现的次数
+	getNodeCount(token) {
+		if(!this.nodeCount)
+			this.nodeCount=[];
+		if(!this.nodeCount[token])
+			this.nodeCount[token]=1;
+		else this.nodeCount[token]++;
+		return this.nodeCount[token];
 	}
 	//判断是不是空白字符
 	isSpace(c) {
@@ -228,12 +363,6 @@ class HtmlParser {
 		var code=c.charCodeAt(0);
 		if((code>=65 && code<=90) ||
 			(code>=97 && code<=122))
-			return true;
-		return false;
-	}
-	//判断是不是引号
-	isQuot(c) {
-		if(c=="\"" || c=="'")
 			return true;
 		return false;
 	}
@@ -340,6 +469,7 @@ class ResponseParserFun {
 */
 
 exports.ResponseParser=ResponseParser;
+exports.HtmlParser=HtmlParser;
 
 
 
