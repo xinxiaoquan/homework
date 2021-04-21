@@ -159,86 +159,76 @@ class HtmlParser {
 			ERRER08:"属性键值错误！",
 			ERRER09:"属性值是非法的空白字符！",
 		}
-		//临时存储节点类型
-		this.tokenType="";
-		//临时存储节点数据
-		this.tokenInner="";
+		//临时存储节点
+		this.currentToken={
+			type:"",
+			tagName:""
+		};
 		//临时存储HTML属性
 		this.attrKeyData="";
 		//临时存储HTML属性值
-		this.attrValueData=""
-		//存储HTML属性
-		this.attrs={};
-		//存储节点
-		this.token={};
-		//HTML属性计数
-		this.attrNum=1;
-		//开始标签计数
-		this.startTagNum=1;
-		//结束标签计数
-		this.endTagNum=1;
-		//自封闭标签计数
-		this.selfColseTagNum=1;
-		//文本节点计数
-		this.textNodeNum=1;
+		this.attrValueData="";
+		//存储的dom树
+		this.domTree={type:"document", tagName:"", children:[], parent:null};
+		//用于生成dom的栈
+		this.domStack=[this.domTree];
 		this.EOF=Symbol("EOF");
 		this.data=function(c) {
 			if(c=="<") {
-				this.tokenType="startTag";
+				this.currentToken.type="startTag";
 				return this.tagStart;
 			}
 			if(c==this.EOF)
 				return this.end;
-			this.tokenType="text";
+			this.currentToken.type="text";
 			return this.textNode(c);
 		}
 		this.textNode=function(c) {
 			if(c=="<") {
-				this.handleNode();
+				this.nodeToDom();
 				return this.data(c);
 			}
-			this.tokenInner+=c;
+			this.currentToken.tagName+=c;
 			return this.textNode;
 		}
 		this.tagStart=function(c) {
 			if(this.isSpace(c))
 				return this.err(this.returnErr("ERRER04"));
 			if(c=="/") {
-				this.tokenType="endTag";
+				this.currentToken.type="endTag";
 				return this.endTag;
 			}
 			if(this.isChar(c))
 				return this.tagName(c);
 			return this.err(this.returnErr("ERRER06"));
 		}
-		//结束标签
+		//结束标签状态
 		this.endTag=function(c) {
 			if(this.isSpace(c))
 				return this.err(this.returnErr("ERRER01"));
 			if(c==">") {
-				this.handleNode();
+				this.nodeToDom();
 				return this.data;
 			}
 			if(this.isChar(c)) {
-				this.tokenInner+=c;
+				this.currentToken.tagName+=c;
 				return this.endTag;
 			}
 			return this.err(this.returnErr("ERRER06"));
 		}
 		this.tagName=function(c) {
-			//console.log(c);
 			if(this.isSpace(c))
 				return this.attrKeyStart;
 			if(c==">") {
-				this.handleNode();
+				this.nodeToDom();
 				return this.data;
 			}
 			if(c=="/") {
-				this.tokenType="selfColseTag";
+				this.currentToken.type="selfColseTag";
 				return this.selfColseTag;
 			}
 			if(this.isChar(c)) {
-				this.tokenInner+=c;
+				this.currentToken.tagName+=c;
 				return this.tagName;
 			}
 			return this.err(this.returnErr("ERRER06"));
@@ -246,7 +236,7 @@ class HtmlParser {
 		//自封闭标签状态
 		this.selfColseTag=function(c) {
 			if(c==">") {
-				this.handleNode();
+				this.nodeToDom();
 				return this.data;
 			}
 			return this.err(this.returnErr("ERRER05"));
@@ -283,7 +273,6 @@ class HtmlParser {
 			}
 			if(c==">" || c=="/") {
 				this.endAttrValue();
-				//console.log(this.attrs);
 				return this.tagName(c);
 			}
 			this.attrValueData+=c;
@@ -307,25 +296,43 @@ class HtmlParser {
 		}
 		//结束属性值操作
 		this.endAttrValue=function() {
-			this.attrs[this.attrKeyData]=this.attrValueData;
+			this.currentToken[this.attrKeyData]
+				=this.attrValueData;
 			this.attrKeyData="";
 			this.attrValueData="";
-			//return this.attrKeyStart;
 		}
-		//处理解析后节点
-		this.handleNode=function() {
-			this.token[this.tokenType+this.getNodeCount(this.tokenType)]
-				=this.tokenInner;
-			if(Object.keys(this.attrs).length>0) {
-				this.token["attr"+this.getNodeCount("attr")]
-					=this.attrs;
-				this.attrKeyData="";
-				this.attrValueData="";
-				this.attrs={};
+		//把分析后的节点转为dom
+		this.nodeToDom=function() {
+			var currentToken=this.currentToken;
+			this.currentToken={
+				type:"",
+				tagName:""
+			};
+			var newDom={
+				type:currentToken.type,
+				tagName:currentToken.tagName,
+				parent:null,
+				children:[],
+				attrs:{}
 			}
-			this.tokenType="";
-			this.tokenInner="";
-			//console.log(this.token);
+			var stackTop=this.domStack[this.domStack.length-1];
+			if(newDom.type=="endTag") {
+				if(newDom.tagName!=stackTop.tagName)
+					throw new Error("解析错误！未找到结束标签");
+				this.domStack.length--;
+				return;
+			}
+			for(var key in currentToken) {
+				if(key=="type" || key=="tagName")
+					continue;
+				newDom.attrs[key]=currentToken[key];
+			}
+			stackTop.children.push(newDom);
+			newDom.parent=stackTop;
+			if(newDom.type!="selfColseTag" &&
+				newDom.type!="text") {
+				this.domStack.push(newDom);
+			}
 		}
 		this.err=function(mess) {
 			console.log(mess);
@@ -338,19 +345,9 @@ class HtmlParser {
 	}
 	//解析html数据传入的入口
 	parserHtml(string) {
-	//	console.log(this.status);
 		for(var i=0; i<string.length; i++)
 			this.status=this.status(string[i]);
-		console.log(this.token);
-	}
-	//计数函数，用于判断节点出现的次数
-	getNodeCount(token) {
-		if(!this.nodeCount)
-			this.nodeCount=[];
-		if(!this.nodeCount[token])
-			this.nodeCount[token]=1;
-		else this.nodeCount[token]++;
-		return this.nodeCount[token];
+		console.log(this.domTree.children[0]);
 	}
 	//判断是不是空白字符
 	isSpace(c) {

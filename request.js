@@ -100,11 +100,11 @@ class Request {
 		mess:"你好"
 	}
 });
-r.send(); */
+r.send();  */
 
 var p=new parserJS.HtmlParser();
 p.parserHtml(
-`<div id="box">你好<img src="1.jpg" class="a1 b2" /></div>`
+`<div id="box">你好<img src="1.jpg" class="a1 b2" /><span>hello</span></div>`
 );
 
 
