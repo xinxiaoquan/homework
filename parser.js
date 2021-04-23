@@ -1,3 +1,4 @@
+var cssParser=require("css");
 
 //响应报文解析类
 class ResponseParser {
@@ -160,18 +161,17 @@ class HtmlParser {
 			ERRER09:"属性值是非法的空白字符！",
 		}
 		//临时存储节点
-		this.currentToken={
-			type:"",
-			tagName:""
-		};
+		this.currentToken={};
 		//临时存储HTML属性
 		this.attrKeyData="";
 		//临时存储HTML属性值
 		this.attrValueData="";
 		//存储的dom树
-		this.domTree={type:"document", tagName:"", children:[], parent:null};
-		//用于生成dom的栈
+		this.domTree={type:"document", children:[], parent:null};
+		//用于处理dom结构的栈
 		this.domStack=[this.domTree];
+		//存储CSS规则
+		this.cssRules=[];
 		this.EOF=Symbol("EOF");
 		this.data=function(c) {
 			if(c=="<") {
@@ -188,7 +188,9 @@ class HtmlParser {
 				this.nodeToDom();
 				return this.data(c);
 			}
-			this.currentToken.tagName+=c;
+			if(!this.currentToken.content)
+				this.currentToken.content="";
+			this.currentToken.content+=c;
 			return this.textNode;
 		}
 		this.tagStart=function(c) {
@@ -211,6 +213,8 @@ class HtmlParser {
 				return this.data;
 			}
 			if(this.isChar(c)) {
+				if(!this.currentToken.tagName)
+					this.currentToken.tagName="";
 				this.currentToken.tagName+=c;
 				return this.endTag;
 			}
@@ -228,6 +232,8 @@ class HtmlParser {
 				return this.selfColseTag;
 			}
 			if(this.isChar(c)) {
+				if(!this.currentToken.tagName)
+					this.currentToken.tagName="";
 				this.currentToken.tagName+=c;
 				return this.tagName;
 			}
@@ -301,39 +307,6 @@ class HtmlParser {
 			this.attrKeyData="";
 			this.attrValueData="";
 		}
-		//把分析后的节点转为dom
-		this.nodeToDom=function() {
-			var currentToken=this.currentToken;
-			this.currentToken={
-				type:"",
-				tagName:""
-			};
-			var newDom={
-				type:currentToken.type,
-				tagName:currentToken.tagName,
-				parent:null,
-				children:[],
-				attrs:{}
-			}
-			var stackTop=this.domStack[this.domStack.length-1];
-			if(newDom.type=="endTag") {
-				if(newDom.tagName!=stackTop.tagName)
-					throw new Error("解析错误！未找到结束标签");
-				this.domStack.length--;
-				return;
-			}
-			for(var key in currentToken) {
-				if(key=="type" || key=="tagName")
-					continue;
-				newDom.attrs[key]=currentToken[key];
-			}
-			stackTop.children.push(newDom);
-			newDom.parent=stackTop;
-			if(newDom.type!="selfColseTag" &&
-				newDom.type!="text") {
-				this.domStack.push(newDom);
-			}
-		}
 		this.err=function(mess) {
 			console.log(mess);
 			return this.end;
@@ -347,7 +320,127 @@ class HtmlParser {
 	parserHtml(string) {
 		for(var i=0; i<string.length; i++)
 			this.status=this.status(string[i]);
-		console.log(this.domTree.children[0]);
+		//console.log(this.domTree);
+	}
+	//把分析后的节点转为dom
+	nodeToDom() {
+		var currentToken=this.currentToken;
+		this.currentToken={};
+		var newDom={};
+		var stackTop=this.domStack[this.domStack.length-1];
+		if(currentToken.type=="endTag") {
+			if(currentToken.tagName!=stackTop.tagName)
+				throw new Error("解析错误！未找到结束标签");
+			this.domStack.length--;
+			if(currentToken.tagName=="style")
+				this.saveCssRules(stackTop.children[0].content);
+			return;
+		}
+		for(var key in currentToken) {
+			if(key=="type") {
+				if(currentToken[key]=="startTag" ||
+					currentToken[key]=="selfColseTag")
+					newDom.type="element";
+				else newDom.type=currentToken[key];
+				continue;
+			}
+			if(key=="tagName"||key=="content") {
+				newDom[key]=currentToken[key];
+				continue;
+			}
+			if(!newDom.attrs)
+				newDom.attrs={};
+			newDom.attrs[key]=currentToken[key];
+		}
+		if(!stackTop.children)
+			stackTop.children=[];
+		stackTop.children.push(newDom);
+		newDom.parent=stackTop;
+		if(currentToken.type!="text")
+			this.cssComputing(newDom);
+		if(currentToken.type=="startTag")
+			this.domStack.push(newDom);
+	}
+	//解析存储CSS属性
+	saveCssRules(data) {
+		var rules=cssParser.parse(data).stylesheet.rules;
+		for(var i=0; i<rules.length; i++) {
+			let selectors=rules[i].selectors;
+			let declarations=rules[i].declarations;
+			let tmp={};
+			for(var j=0; j<declarations.length; j++) {
+				let key=declarations[j].property;
+				let value=declarations[j].value;
+				tmp[key]=value;
+			}
+			this.cssRules.push({
+				selectors:selectors,
+				declarations:tmp
+			});
+		}
+		//console.log(this.cssRules);
+	}
+	//CSS计算，匹配元素
+	cssComputing(elem) {
+		var parents=this.domStack.slice().reverse();
+		for(var i=0; i<this.cssRules.length; i++) {
+			let selectors=this.cssRules[i].selectors;	
+			let declarations=this.cssRules[i].declarations;
+			for(var j=0; j<selectors.length; j++) {
+				let selector=selectors[j];
+				selector=selector.split(/\s+/).reverse();
+				let isMatch=false;
+				if(selector.length>parents.length+1)
+					continue;
+				if(!this.cssMatchDom(elem, selector[0]))
+					continue;
+				for(var k=0,w=1; k<parents.length; k++) {
+					if(this.cssMatchDom(parents[k], selector[w]))
+						w++;
+					//	else break;
+					if(w==selector.length) {
+						isMatch=true;
+						break;
+					}
+				}
+				if(isMatch)
+					console.log(selector.reverse().join(" "), "匹配到了！");
+			}
+		}
+	}
+	//CSS选择器匹配元素
+	cssMatchDom(elem, selector) {
+		if(!selector || !elem.attrs)
+			return false;
+		if(selector.charAt(0)=="#") {
+			selector=selector.slice(1);
+			if(elem.attrs.id &&
+					elem.attrs.id==selector)
+				return true;
+			else return false;
+		}
+		if(selector.charAt(0)==".") {
+			selector=selector.slice(1);
+			if(elem.attrs["class"] &&
+					elem.attrs["class"].indexOf(selector)!=-1)
+				return true;
+			else return false;
+		}
+		if(selector.charAt(0)=="[") {
+			selector=selector.slice(1,-1);
+			var tmp=selector.split("=");
+			if(tmp[0]=="class")
+				return this.cssMatchDom(elem, "."+tmp[1]);
+			if(tmp[0]=="id")
+				return this.cssMatchDom(elem, "#"+tmp[1]);
+			if(elem.attrs &&
+					elem.attrs[tmp[0]]==tmp[1])
+					return true;
+			else return false;
+		}
+		if(elem.tagName==selector)
+			return true;
+		return false;
 	}
 	//判断是不是空白字符
 	isSpace(c) {
