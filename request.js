@@ -1,5 +1,4 @@
 //客户端，发送HTTP请求
-
 const parserJS=require("./parser.js");
 const net=require("net");
 
@@ -23,7 +22,8 @@ class Request {
 		var info=this.formatHTTP();
 		var that=this;
 		return new Promise(function(resolve, reject) {
-			var parser=new parserJS.ResponseParser();
+			var resP=new parserJS.ResponseParser();
+			var htmlP=new parserJS.HtmlParser();
 			if(connect) connect.write(info);
 			else {
 				connect=net.createConnection({
@@ -34,8 +34,9 @@ class Request {
 				});
 				connect.on("data", function(data) {
 					data=data+"";
-					var res=parser.receive(data);
-					console.log(res);
+					let res=resP.receive(data);
+					let dom=htmlP.parseHtml(res.body);
+					console.log(dom);
 					connect.end();
 				});
 				connect.on("error", function(err) {
@@ -91,7 +92,7 @@ class Request {
 	
 }
 
-/* var r=new Request({
+var r=new Request({
 	headers:{
 		port:666
 		//"content-type":"application/json"
@@ -100,33 +101,7 @@ class Request {
 		mess:"你好"
 	}
 });
-r.send();  */
-
-var p=new parserJS.HtmlParser();
-p.parserHtml(
-`
-<style>
-	div [class=b2] {
-		width:100px;
-		height:200px;
-	}
-	img {
-		border:1px solid #555;
-	}
-	div .a1 {
-		display:none;
-	}
-	#box {
-		font-size:10px;
-	}
-</style>
-<div id="box">
-	你好
-	<img src="1.jpg" />
-	<span class="a1 b2">hello</span>
-</div>
-`
-);
+r.send();
 
 
 

@@ -317,10 +317,10 @@ class HtmlParser {
 		this.status=this.data;
 	}
 	//解析html数据传入的入口
-	parserHtml(string) {
+	parseHtml(string) {
 		for(var i=0; i<string.length; i++)
 			this.status=this.status(string[i]);
-		//console.log(this.domTree);
+		return this.domTree;
 	}
 	//把分析后的节点转为dom
 	nodeToDom() {
@@ -380,7 +380,7 @@ class HtmlParser {
 		}
 		//console.log(this.cssRules);
 	}
-	//CSS计算，匹配元素
+	//添加CSS规则到DOM中
 	cssComputing(elem) {
 		var parents=this.domStack.slice().reverse();
 		for(var i=0; i<this.cssRules.length; i++) {
@@ -394,21 +394,36 @@ class HtmlParser {
 					continue;
 				if(!this.cssMatchDom(elem, selector[0]))
 					continue;
+				var weight=this.cssSeletorWeight(selectors[j]);
 				for(var k=0,w=1; k<parents.length; k++) {
 					if(this.cssMatchDom(parents[k], selector[w]))
 						w++;
-					//	else break;
 					if(w==selector.length) {
 						isMatch=true;
 						break;
 					}
 				}
-				if(isMatch)
-					console.log(selector.reverse().join(" "), "匹配到了！");
+				if(isMatch) {
+					if(!elem.computedStype)
+						elem.computedStype={};
+					for(var key in declarations) {
+						if(elem.computedStype[key] &&
+							 elem.computedStype[key].weight) {
+							 let isCover=this.cssCompareWeight(
+								 elem.computedStype[key].weight, weight
+							 )<0?true:false;
+							 if(!isCover) continue;
+						}
+						elem.computedStype[key]={
+							value:declarations[key],
+							weight:weight
+						};
+					}
+				}
 			}
 		}
 	}
-	//CSS选择器匹配元素
+	//CSS选择器是否能匹配到传入的元素
 	cssMatchDom(elem, selector) {
 		if(!selector || !elem.attrs)
 			return false;
@@ -441,6 +456,32 @@ class HtmlParser {
 		if(elem.tagName==selector)
 			return true;
 		return false;
+	}
+	//计算CSS规则的权重
+	cssSeletorWeight(selector) {
+		var parts=selector.split(/\s+/);
+		var weight=[0,0,0,0];
+		for(var i=0; i<parts.length; i++) {
+			if(parts[i].charAt(0)=="#") {
+				weight[1]++;
+				continue;
+			}
+			if(parts[i].charAt(0)=="." ||
+				parts[i].charAt(0)=="[") {
+				weight[2]++;
+				continue;
+			}
+			weight[3]++;
+		}
+		return weight;
+	}
+	//比较CSS规则的权重
+	cssCompareWeight(old, _new) {
+		for(var i=0; i<=4; i++) {
+			let res=old[i]-_new[i];
+			if(res) return res;
+		}
+		return -1;
 	}
 	//判断是不是空白字符
 	isSpace(c) {

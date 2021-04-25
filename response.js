@@ -1,5 +1,4 @@
 //服务端，返回HTTP响应
-
 const http=require("http");
 const fs=require("fs");
 var htmlFile=fs.readFileSync("code.html");
@@ -28,8 +27,8 @@ http.createServer(function(req, res) {
 		res.writeHead(200, {
 			"content-type":"text/html"
 		});
-		if(Object.keys(body).length>0)
-			htmlFile+="<!--服务端已经获取到你发送的数据-->"
+		/* if(Object.keys(body).length>0)
+			htmlFile+="<!--服务端已经获取到你发送的数据-->"; */
 		res.end(htmlFile);
 	});
 }).listen(666);
