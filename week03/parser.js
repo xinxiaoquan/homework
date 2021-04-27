@@ -2,7 +2,7 @@ var cssParser=require("css");
 var LJS=require("./layout.js");
 
 /*
-	响应解析相关的类已经删除（为了简洁）
+	响应解析类已经删除（为了简洁）
 	完整代码在前面的作业中
 */
 

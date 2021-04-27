@@ -94,6 +94,58 @@ class layout {
 			crossBase=0;
 			crossSign=+1;
 		}
+		
+		var flexLine=[];
+		var flexLines=[];
+		var isAutoMainsize=false;
+		if(!styles[mainSize] ||
+				styles[mainSize]=="auto") {
+			styles[mainSize]=0;
+			isAutoMainsize=true;
+		}
+		var mainSpace=styles[mainSize];
+		if(isAutoMainsize)
+			flexLine.mainSpace=0;
+		for(var i=0; i<items.length; i++) {
+			let item=items[i];
+			let itemStyles=this.getStyles(item);
+			if(!itemStyles[mainSize] ||
+				 itemStyles[mainSize]=="auto")
+				 itemStyles[mainSize]=0;
+			if(!itemStyles[crossSize] ||
+				 itemStyles[crossSize]=="auto")
+				 itemStyles[crossSize]=0;
+			if(isAutoMainsize) {
+				styles[mainSize]+=itemStyles[mainSize];
+				flexLine.push(item);
+				if(itemStyles[crossSize] !== undefined)
+					flexLine.crossSpace=Math.max(
+					(flexLine.crossSpace||0), itemStyles[crossSize]);
+				continue;
+			}
+			
+			if(item.flex) {
+				flexLine.push(item);
+			} else {
+				if(itemStyles[mainSize]>styles[mainSize])
+					itemStyles[mainSize]=styles[mainSize];
+				if(mainSpace<itemStyles[mainSize]) {
+					flexLine.mainSpace=mainSpace;
+					flexLines.push(flexLine);
+					flexLine=[];
+					mainSpace=styles[mainSize];
+					i--;
+					continue;
+				}
+				flexLines.push(item);
+				mainSpace-=itemStyles[mainSize];
+			}
+			if(itemStyles[crossSize] !== undefined)
+					flexLine.crossSpace=Math.max(
+					(flexLine.crossSpace||0), itemStyles[crossSize]);
+		}
+		flexLine.mainSpace=mainSpace;
+		flexLines.push(flexLine);
 	}
 	getStyles(dom) {
 		var styles={};
