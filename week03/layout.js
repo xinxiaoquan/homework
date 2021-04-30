@@ -4,18 +4,18 @@ class layout {
 	constructor(dom) {
 		if(!dom.computedStype)
 			return;
-		var styles=this.getStyles(dom);
-		if(styles.display &&
-			styles.display!="flex") {
+		this.domStyles=this.getStyles(dom);
+		if(this.domStyles.display &&
+			this.domStyles.display!="flex") {
 			return false;
 		}
-		if(!styles.width ||
-			styles.width=="auto")
-			styles.width=null;
-		if(!styles.height ||
-			styles.height=="auto")
-			styles.height=null;
-		var chilren=dom.children;
+		if(!this.domStyles.width ||
+			this.domStyles.width=="auto")
+			this.domStyles.width=null;
+		if(!this.domStyles.height ||
+			this.domStyles.height=="auto")
+			this.domStyles.height=null;
+		var children=dom.children;
 		var items=[];
 		if(children)
 			for(var key in children)
@@ -24,128 +24,145 @@ class layout {
 		items.sort((a,b)=>{
 			return (a||0)-(b||0);
 		});
-		if(!styles["flex-direction"] ||
-				styles["flex-direction"]=="auto")
-				styles["flex-direction"]="row";
-		if(!styles["align-items"] ||
-				styles["align-items"]=="auto")
-				styles["align-items"]="stretch";
-		if(!styles["justify-content"] ||
-				styles["justify-content"]=="auto")
-				styles["justify-content"]="flex-start";
-		if(!styles["flex-wrap"] ||
-				styles["flex-wrap"]=="auto")
-				styles["flex-wrap"]="nowrap";
-		if(!styles["align-content"] ||
-				styles["align-content"]=="auto")
-				styles["align-content"]="stretch";
-		var mainSize,mainStart,mainEnd,mainSign,mainBase,
-			crossSize,crossStart,crossEnd,crossSign,crossBase;
-		if(styles["flex-direction"]=="row") {
-			mainSize="width";
-			mainStart="left";
-			mainEnd="right";
-			mainSign=+1;
-			mainBase=0;
-			
-			crossSize="height";
-			crossStart="top";
-			crossEnd="bottom";
-		}
-		if(styles["flex-direction"]=="row-reverse") {
-			mainSize="width";
-			mainStart="right";
-			mainEnd="left";
-			mainSign=-1;
-			mainBase=styles.width;
-			
-			crossSize="height";
-			crossStart="top";
-			crossEnd="bottom";
-		}
-		if(styles["flex-direction"]=="column") {
-			mainSize="height";
-			mainStart="top";
-			mainEnd="bottom";
-			mainSign=+1;
-			mainBase=0;
-			
-			crossSize="width";
-			crossStart="left";
-			crossEnd="right";
-		}
-		if(styles["flex-direction"]=="column-reverse") {
-			mainSize="height";
-			mainStart="bottom";
-			mainEnd="top";
-			mainSign=-1;
-			mainBase=styles.height;
-			
-			crossSize="width";
-			crossStart="left";
-			crossEnd="right";
-		}
-		if(styles["flex-wrap"]=="warp-reverse") {
-			var tmp=crossStart;
-			crossStart=crossEnd;
-			crossEnd=tmp;
-			crossSign=-1;
-		} else {
-			crossBase=0;
-			crossSign=+1;
-		}
 		
+		if(!this.domStyles["flex-direction"] ||
+				this.domStyles["flex-direction"]=="auto")
+				this.domStyles["flex-direction"]="row";
+		if(!this.domStyles["align-items"] ||
+				this.domStyles["align-items"]=="auto")
+				this.domStyles["align-items"]="stretch";
+		if(!this.domStyles["justify-content"] ||
+				this.domStyles["justify-content"]=="auto")
+				this.domStyles["justify-content"]="flex-start";
+		if(!this.domStyles["flex-wrap"] ||
+				this.domStyles["flex-wrap"]=="auto")
+				this.domStyles["flex-wrap"]="nowrap";
+		if(!this.domStyles["align-content"] ||
+				this.domStyles["align-content"]=="auto")
+				this.domStyles["align-content"]="stretch";
+				
+		this.mainSize=0;
+		this.mainStart=0;
+		this.mainEnd=0;
+		this.mainSign=0;
+		this.mainBase=0;
+		this.crossSize=0;
+		this.crossStart=0;
+		this.crossEnd=0;
+		this.crossSign=0;
+		this.crossBase=0;
+		
+		if(this.domStyles["flex-direction"]=="row") {
+			this.mainSize="width";
+			this.mainStart="left";
+			this.mainEnd="right";
+			this.mainSign=+1;
+			this.mainBase=0;
+
+			this.crossSize="height";
+			this.crossStart="top";
+			this.crossEnd="bottom";
+		}
+		if(this.domStyles["flex-direction"]=="row-reverse") {
+			this.mainSize="width";
+			this.mainStart="right";
+			this.mainEnd="left";
+			this.mainSign=-1;
+			this.mainBase=this.domStyles.width;
+			
+			this.crossSize="height";
+			this.crossStart="top";
+			this.crossEnd="bottom";
+		}
+		if(this.domStyles["flex-direction"]=="column") {
+			this.mainSize="height";
+			this.mainStart="top";
+			this.mainEnd="bottom";
+			this.mainSign=+1;
+			this.mainBase=0;
+			
+			this.crossSize="width";
+			this.crossStart="left";
+			this.crossEnd="right";
+		}
+		if(this.domStyles["flex-direction"]=="column-reverse") {
+			this.mainSize="height";
+			this.mainStart="bottom";
+			this.mainEnd="top";
+			this.mainSign=-1;
+			this.mainBase=this.domStyles.height;
+			
+			this.crossSize="width";
+			this.crossStart="left";
+			this.crossEnd="right";
+		}
+		if(this.domStyles["flex-wrap"]=="warp-reverse") {
+			var tmp=this.crossStart;
+			this.crossStart=this.crossEnd;
+			this.crossEnd=tmp;
+			this.crossSign=-1;
+		} else {
+			this.crossBase=0;
+			this.crossSign=+1;
+		}
+
 		var flexLine=[];
+		flexLine.flexTotal=0;
 		var flexLines=[];
 		var isAutoMainsize=false;
-		if(!styles[mainSize] ||
-				styles[mainSize]=="auto") {
-			styles[mainSize]=0;
+		if(!this.domStyles[this.mainSize] ||
+				this.domStyles[this.mainSize]=="auto") {
+			this.domStyles[this.mainSize]=0;
 			isAutoMainsize=true;
 		}
-		var mainSpace=styles[mainSize];
-		if(isAutoMainsize)
-			flexLine.mainSpace=0;
+
+		var mainSpace=this.domStyles[this.mainSize];
 		for(var i=0; i<items.length; i++) {
 			let item=items[i];
 			let itemStyles=this.getStyles(item);
-			if(!itemStyles[mainSize] ||
-				 itemStyles[mainSize]=="auto")
-				 itemStyles[mainSize]=0;
-			if(!itemStyles[crossSize] ||
-				 itemStyles[crossSize]=="auto")
-				 itemStyles[crossSize]=0;
+			if(!itemStyles[this.mainSize] ||
+				 itemStyles[this.mainSize]=="auto")
+				 itemStyles[this.mainSize]=0;
+			if(!itemStyles[this.crossSize] ||
+				 itemStyles[this.crossSize]=="auto")
+				 itemStyles[this.crossSize]=0;
 			if(isAutoMainsize) {
-				styles[mainSize]+=itemStyles[mainSize];
+				this.domStyles[this.mainSize]+=itemStyles[this.mainSize];
 				flexLine.push(item);
-				if(itemStyles[crossSize] !== undefined)
+				if(itemStyles[this.crossSize] !== undefined)
 					flexLine.crossSpace=Math.max(
-					(flexLine.crossSpace||0), itemStyles[crossSize]);
+					(flexLine.crossSpace||0), itemStyles[this.crossSize]);
 				continue;
 			}
-			
+
 			if(item.flex) {
 				flexLine.push(item);
+				flexLine.flexTotal++;
 			} else {
-				if(itemStyles[mainSize]>styles[mainSize])
-					itemStyles[mainSize]=styles[mainSize];
-				if(mainSpace<itemStyles[mainSize]) {
+				if(itemStyles[this.mainSize]>this.domStyles[this.mainSize])
+					itemStyles[this.mainSize]=this.domStyles[this.mainSize];
+
+				if(mainSpace<itemStyles[this.mainSize]) {
 					flexLine.mainSpace=mainSpace;
 					flexLines.push(flexLine);
+					//计算主轴的对齐方式
+					this.mainAxisAlign(flexLine);
+					mainSpace=this.domStyles[this.mainSize];
 					flexLine=[];
-					mainSpace=styles[mainSize];
+					flexLine.flexTotal=0;
 					i--;
 					continue;
 				}
-				flexLines.push(item);
-				mainSpace-=itemStyles[mainSize];
+				flexLine.push(item);
+				mainSpace-=itemStyles[this.mainSize];
 			}
-			if(itemStyles[crossSize] !== undefined)
+			if(itemStyles[this.crossSize] !== undefined)
 					flexLine.crossSpace=Math.max(
-					(flexLine.crossSpace||0), itemStyles[crossSize]);
+					(flexLine.crossSpace||0), itemStyles[this.crossSize]);
 		}
 		flexLine.mainSpace=mainSpace;
 		flexLines.push(flexLine);
+		//console.log(flexLines);
 	}
 	getStyles(dom) {
 		var styles={};
@@ -157,6 +174,37 @@ class layout {
 			styles[key]=value;
 		}
 		return styles;
+	}
+	//主轴的对齐方式
+	mainAxisAlign(flexLine) {
+		console.log(flexLine);
+		/**********BUG************/
+		var currentMain=this.mainBase;
+		var step=0;
+		var scale=1;
+		if(flexLine.flexTotal)
+			scale=flexLine.mainSpace/flexLine.flexTotal;
+		if(this.domStyles["justify-content"]=="flex-start");
+		if(this.domStyles["justify-content"]=="flex-end")
+			currentMain=this.mainBase+this.mainSign*flexLine.mainSpace;
+		if(this.domStyles["justify-content"]=="center")
+			currentMain=this.mainBase+this.mainSign*(flexLine.mainSpace/2);
+		if(this.domStyles["justify-content"]=="space-between")
+			step=flexLine.mainSpace/(flexLine.length-1)*this.mainSign;
+		if(this.domStyles["justify-content"]=="space-around") {
+			step=flexLine.mainSpace/(flexLine.length)*this.mainSign;
+			currentMain=step/2+this.mainBase;
+		}
+		for(var j=0; j<flexLine.length; j++) {
+			let item=flexLine[j];
+			let itemStyles=this.getStyles(item);
+			if(flexLine[j].flex)
+				itemStyles[this.mainSize]=flexLine[j].flex*scale;
+			itemStyles[this.mainStart]=currentMain;
+			itemStyles[this.mainEnd]=currentMain+itemStyles[this.mainSize]*this.mainSign;
+			currentMain=itemStyles[this.mainEnd]+step;
+			item.computedStype=itemStyles;
+		}
 	}
 }
 

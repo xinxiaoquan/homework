@@ -2,34 +2,45 @@
 var PJS=require("./parser.js");
 
 var p=new PJS.HtmlParser;
-p.parse(`
+var res=p.parse(`
 <style>
-	div [class=b2] {
-		width:100px;
-		height:200px;
-	}
-	img {
-		border:1px solid #555;
-	}
-	div .a1 {
-		display:none;
-	}
-	#box .b2 {
-		width:800px;
-	}
 	#box {
-		font-size:10px;
+		width:300px;
+		display:flex;
+	}
+	#box .item {
+		width:50px;
+		height:20px;
 	}
 </style>
 <div id="box">
-	你好
-	<img src="1.jpg" />
-	<span class="a1 b2">hello</span>
+	<div class="item"></div>
+	<div class="item"></div>
+	<div class="item"></div>
+	<div class="item"></div>
+	<div class="item"></div>
+	<div class="item"></div>
+	<div class="item"></div>
+	<div class="item"></div>
+	<div class="item"></div>
+	<div class="item"></div>
+	<div class="item"></div>
+	<div class="item"></div>
+	<div class="item"></div>
+	<div class="item"></div>
+	<div class="item"></div>
+	<div class="item"></div>
 </div>
 `);
+/* var sum=0;
+for(var i=0; i<res.children[3].children.length; i++)
+	if(res.children[3].children[i].type=="element") {
+		sum++;
+		console.log(res.children[3].children[i].computedStype);
+	}
+console.log(sum);
 
-
-
+ */
 
 
 

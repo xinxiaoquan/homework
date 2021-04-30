@@ -194,9 +194,10 @@ class HtmlParser {
 			this.domStack.length--;
 			if(currentToken.tagName=="style")
 				this.saveCssRules(stackTop.children[0].content);
-			//解析CSS布局页面
-			var l=new LJS.layout(stackTop);
-			/* console.log(l); */
+			if(stackTop.attrs && stackTop.attrs.id=="box") {
+				//解析CSS布局页面
+				new LJS.layout(stackTop);
+			}
 			return;
 		}
 		for(var key in currentToken) {
