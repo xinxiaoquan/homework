@@ -196,7 +196,18 @@ class HtmlParser {
 				this.saveCssRules(stackTop.children[0].content);
 			if(stackTop.attrs && stackTop.attrs.id=="box") {
 				//解析CSS布局页面
-				new LJS.layout(stackTop);
+				let l=new LJS.layout(stackTop);
+				let flexLines=l.flexLines;
+				let index=0;
+				for(let i=0; i<flexLines.length; i++)
+					for(let j=0; j<flexLines[i].length; j++) {
+						/* while(stackTop.children[index].type!=flexLines[i][j].type &&
+									stackTop.children.length>index) index++;
+						if(stackTop.children.length<=index) break;
+						stackTop.children[index].computedStype=flexLines[i][j].computedStype; */
+						console.log(flexLines[i][j].computedStype, i, j);
+						//index++;
+					}
 			}
 			return;
 		}

@@ -135,7 +135,7 @@ class layout {
 				continue;
 			}
 
-			if(item.flex) {
+			if(item.attrs && item.attrs.flex) {
 				flexLine.push(item);
 				flexLine.flexTotal++;
 			} else {
@@ -144,9 +144,9 @@ class layout {
 
 				if(mainSpace<itemStyles[this.mainSize]) {
 					flexLine.mainSpace=mainSpace;
-					flexLines.push(flexLine);
 					//计算主轴的对齐方式
 					this.mainAxisAlign(flexLine);
+					flexLines.push(flexLine);
 					mainSpace=this.domStyles[this.mainSize];
 					flexLine=[];
 					flexLine.flexTotal=0;
@@ -161,8 +161,13 @@ class layout {
 					(flexLine.crossSpace||0), itemStyles[this.crossSize]);
 		}
 		flexLine.mainSpace=mainSpace;
+		this.mainAxisAlign(flexLine);
 		flexLines.push(flexLine);
-		//console.log(flexLines);
+		
+		this.flexLines=flexLines;
+		/* for(var i=0; i<flexLines.length; i++)
+			for(var j=0; j<flexLines[i].length; j++)
+				console.log(flexLines[i][j].computedStype); */
 	}
 	getStyles(dom) {
 		var styles={};
@@ -177,13 +182,9 @@ class layout {
 	}
 	//主轴的对齐方式
 	mainAxisAlign(flexLine) {
-		console.log(flexLine);
-		/**********BUG************/
 		var currentMain=this.mainBase;
 		var step=0;
 		var scale=1;
-		if(flexLine.flexTotal)
-			scale=flexLine.mainSpace/flexLine.flexTotal;
 		if(this.domStyles["justify-content"]=="flex-start");
 		if(this.domStyles["justify-content"]=="flex-end")
 			currentMain=this.mainBase+this.mainSign*flexLine.mainSpace;
@@ -195,16 +196,23 @@ class layout {
 			step=flexLine.mainSpace/(flexLine.length)*this.mainSign;
 			currentMain=step/2+this.mainBase;
 		}
+		if(flexLine.flexTotal) {
+			scale=flexLine.mainSpace/flexLine.flexTotal;
+			currentMain=0;
+			step=0;
+		}
 		for(var j=0; j<flexLine.length; j++) {
 			let item=flexLine[j];
 			let itemStyles=this.getStyles(item);
-			if(flexLine[j].flex)
-				itemStyles[this.mainSize]=flexLine[j].flex*scale;
+			if(flexLine[j].attrs && flexLine[j].attrs.flex)
+				itemStyles[this.mainSize]=flexLine[j].attrs.flex*scale;
 			itemStyles[this.mainStart]=currentMain;
 			itemStyles[this.mainEnd]=currentMain+itemStyles[this.mainSize]*this.mainSign;
 			currentMain=itemStyles[this.mainEnd]+step;
+			
 			item.computedStype=itemStyles;
 		}
+
 	}
 }
 
