@@ -205,7 +205,7 @@ class HtmlParser {
 									stackTop.children.length>index) index++;
 						if(stackTop.children.length<=index) break;
 						stackTop.children[index].computedStype=flexLines[i][j].computedStype; */
-						console.log(flexLines[i][j].computedStype, i, j);
+						console.log(flexLines[i][j].computedStype);
 						//index++;
 					}
 			}

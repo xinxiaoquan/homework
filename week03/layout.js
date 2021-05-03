@@ -135,9 +135,9 @@ class layout {
 				continue;
 			}
 
-			if(item.attrs && item.attrs.flex) {
+			if(itemStyles["flex"]) {
 				flexLine.push(item);
-				flexLine.flexTotal++;
+				flexLine.flexTotal+=Number(itemStyles["flex"]);
 			} else {
 				if(itemStyles[this.mainSize]>this.domStyles[this.mainSize])
 					itemStyles[this.mainSize]=this.domStyles[this.mainSize];
@@ -163,16 +163,16 @@ class layout {
 		flexLine.mainSpace=mainSpace;
 		this.mainAxisAlign(flexLine);
 		flexLines.push(flexLine);
-		
+		//计算交叉轴的对齐方式
+		this.crossAxisAlign(this.domStyles, flexLines);
+
 		this.flexLines=flexLines;
-		/* for(var i=0; i<flexLines.length; i++)
-			for(var j=0; j<flexLines[i].length; j++)
-				console.log(flexLines[i][j].computedStype); */
 	}
 	getStyles(dom) {
 		var styles={};
 		for(var key in dom.computedStype) {
 			let value=dom.computedStype[key].value;
+			if(!value) return dom.computedStype;
 			if(value.toString().match(/px$/))
 				value=parseInt(value);
 			if(!isNaN(value)) value=Number(value);
@@ -204,15 +204,82 @@ class layout {
 		for(var j=0; j<flexLine.length; j++) {
 			let item=flexLine[j];
 			let itemStyles=this.getStyles(item);
-			if(flexLine[j].attrs && flexLine[j].attrs.flex)
-				itemStyles[this.mainSize]=flexLine[j].attrs.flex*scale;
+			if(itemStyles["flex"])
+				itemStyles[this.mainSize]=itemStyles["flex"]*scale;
 			itemStyles[this.mainStart]=currentMain;
 			itemStyles[this.mainEnd]=currentMain+itemStyles[this.mainSize]*this.mainSign;
 			currentMain=itemStyles[this.mainEnd]+step;
 			
 			item.computedStype=itemStyles;
 		}
+	}
+	//交叉轴的对齐方式
+	crossAxisAlign(domStyles, flexLines) {
+		var autoCrossSize=false;
+		if(!domStyles[this.crossSize]) {
+			domStyles[this.crossSize]=0;
+			autoCrossSize=true;
+		}
+		var crossSpace=domStyles[this.crossSize];
+		for(var i=0; i<flexLines.length; i++) {
+			if(autoCrossSize) {
+				domStyles[this.crossSize]+=flexLines[this.crossSize];
+				continue;
+			}
+			crossSpace-=flexLines[this.crossSize];
+		}
+		if(domStyles["flex-wrap"]=="wrap-reverse") {
+			this.crossBase=domStyles[this.crossSize];
+		} else this.crossBase=0;
+		var lineSize=domStyles[this.crossSize]/flexLines.length;
+		var step=0;
+		if(domStyles["align-content"]=="flex-start");
+		if(domStyles["align-content"]=="flex-end")
+			this.crossBase+=this.crossSign*crossSpace;
+		if(domStyles["align-content"]=="center")
+			this.crossBase+=this.crossSign*crossSpace/2;
+		if(domStyles["align-content"]=="space-between")
+			step=crossSpace/(flexLines.length-1);
+		if(domStyles["align-content"]=="space-around") {
+			step=crossSpace/(flexLines.length);
+			this.crossBase+=this.crossSign*step/2;
+		}
+		if(domStyles["align-content"]=="stretch");
 
+		for(var i=0; i<flexLines.length; i++) {
+			var items=flexLines[i];
+			var lineCrossSize=
+				domStyles["align-content"]=="stretch"?
+					items.crossSpace+crossSpace/flexLines.length:
+					items[this.crossSize];
+			for(var j=0; j<items.length; j++) {
+				var item=items[j];
+				var itemStyles=this.getStyles(item);
+				var align=itemStyles["align-self"]||domStyles["align-items"];
+				if(!itemStyles[this.crossSize] && align=="stretch")
+					itemStyles[this.crossSize]=lineCrossSize;
+				if(align=="flex-start") {
+					itemStyles[this.crossStart]=this.crossBase;
+					itemStyles[this.crossEnd]=itemStyles[this.crossStart]+this.crossSign*itemStyles[this.crossSize];
+				}
+				if(align=="flex-end") {
+					itemStyles[this.crossEnd]=this.crossBase+this.crossSign*lineCrossSize;
+					itemStyles[this.crossStart]=itemStyles[this.crossEnd]-this.crossSign*itemStyles[this.crossSize];
+				}
+				if(align=="center") {
+					itemStyles[this.crossStart]=this.crossBase+this.crossSign*(lineCrossSize-itemStyles[this.crossSize])/2;
+					itemStyles[this.crossEnd]=itemStyles[this.crossStart]+this.crossSign*itemStyles[this.crossSize];
+				}
+				if(align=="stretch") {
+					itemStyles[this.crossStart]=this.crossBase;
+					itemStyles[this.crossEnd]=this.crossBase+this.crossSign*(itemStyles[this.crossSize]||lineCrossSize);
+					itemStyles[this.crossSize]=this.crossSign*(itemStyles[this.crossEnd]-itemStyles[this.crossStart]);
+				}
+				this.crossBase+=this.crossSign*(lineCrossSize+step);
+				
+				item.computedStype=itemStyles;
+			}
+		}
 	}
 }
 

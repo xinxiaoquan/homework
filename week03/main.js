@@ -7,16 +7,21 @@ var res=p.parse(`
 	#box {
 		width:300px;
 		display:flex;
-		justify-content:space-around;
 	}
 	#box .item {
 		width:65px;
 		height:20px;
 	}
+	#box .d1 {
+		flex:1;
+	}
+	#box .d2 {
+		flex:3;
+	}
 </style>
 <div id="box">
-	<div flex=1 class="item"></div>
-	<div class="item"></div>
+	<div class="item d1"></div>
+	<div class="item d2"></div>
 	<div class="item"></div>
 	<div class="item"></div>
 	<div class="item"></div>
