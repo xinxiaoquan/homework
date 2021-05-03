@@ -11,12 +11,10 @@ var res=p.parse(`
 	#box .item {
 		width:65px;
 		height:20px;
+		align-content:flex-end;
 	}
 	#box .d1 {
-		flex:1;
-	}
-	#box .d2 {
-		flex:3;
+		height:50px;
 	}
 </style>
 <div id="box">

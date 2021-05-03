@@ -1,3 +1,4 @@
+var images=require("images");
 //解析CSS布局页面类
 
 class layout {
@@ -165,8 +166,27 @@ class layout {
 		flexLines.push(flexLine);
 		//计算交叉轴的对齐方式
 		this.crossAxisAlign(this.domStyles, flexLines);
-
+		//最终计算的结果
 		this.flexLines=flexLines;
+	}
+	//设置渲染的视口尺寸
+	setViewportSize(width, height) {
+		this.viewport=images(width, height);
+		this.viewport.fill(255,255,255);
+	}
+	//渲染图片
+	print(dom) {
+		if(!dom.computedStype
+			|| !this.viewport)
+			return false;
+		var img=images(dom.computedStype.width, dom.computedStype.height);
+		img.fill(Math.random()*256+100,Math.random()*256+100,Math.random()*256+100);
+		this.viewport.draw(img, dom.computedStype.left, dom.computedStype.top);
+	}
+	//保存图片
+	saveImg(imgPath) {
+		if(this.viewport)
+			this.viewport.save(imgPath);
 	}
 	getStyles(dom) {
 		var styles={};
@@ -214,6 +234,7 @@ class layout {
 		}
 	}
 	//交叉轴的对齐方式
+	/***********BUG****************/
 	crossAxisAlign(domStyles, flexLines) {
 		var autoCrossSize=false;
 		if(!domStyles[this.crossSize]) {

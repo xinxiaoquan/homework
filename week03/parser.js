@@ -195,19 +195,19 @@ class HtmlParser {
 			if(currentToken.tagName=="style")
 				this.saveCssRules(stackTop.children[0].content);
 			if(stackTop.attrs && stackTop.attrs.id=="box") {
-				//解析CSS布局页面
+				//解析CSS渲染页面
 				let l=new LJS.layout(stackTop);
 				let flexLines=l.flexLines;
-				let index=0;
-				for(let i=0; i<flexLines.length; i++)
-					for(let j=0; j<flexLines[i].length; j++) {
-						/* while(stackTop.children[index].type!=flexLines[i][j].type &&
-									stackTop.children.length>index) index++;
-						if(stackTop.children.length<=index) break;
-						stackTop.children[index].computedStype=flexLines[i][j].computedStype; */
-						console.log(flexLines[i][j].computedStype);
-						//index++;
+				l.setViewportSize(300,500);
+				for(let i=0; i<flexLines.length; i++) {
+				 	for(let j=0; j<flexLines[i].length; j++) {
+						let dom=flexLines[i][j];
+						//console.log(dom.computedStype);
+						l.print(dom);
 					}
+					//console.log("-------------");
+				}
+				l.saveImg("res.jpg"); 
 			}
 			return;
 		}
