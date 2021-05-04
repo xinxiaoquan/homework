@@ -2,7 +2,7 @@ var images=require("images");
 //解析CSS布局页面类
 
 class layout {
-	constructor(dom) {
+	init(dom) {
 		if(!dom.computedStype)
 			return;
 		this.domStyles=this.getStyles(dom);
@@ -25,7 +25,6 @@ class layout {
 		items.sort((a,b)=>{
 			return (a||0)-(b||0);
 		});
-		
 		if(!this.domStyles["flex-direction"] ||
 				this.domStyles["flex-direction"]=="auto")
 				this.domStyles["flex-direction"]="row";
@@ -42,16 +41,16 @@ class layout {
 				this.domStyles["align-content"]=="auto")
 				this.domStyles["align-content"]="stretch";
 				
-		this.mainSize=0;
-		this.mainStart=0;
-		this.mainEnd=0;
-		this.mainSign=0;
-		this.mainBase=0;
-		this.crossSize=0;
-		this.crossStart=0;
-		this.crossEnd=0;
-		this.crossSign=0;
-		this.crossBase=0;
+		this.mainSize="";
+		this.mainStart="";
+		this.mainEnd="";
+		this.mainSign="";
+		this.mainBase="";
+		this.crossSize="";
+		this.crossStart="";
+		this.crossEnd="";
+		this.crossSign="";
+		this.crossBase="";
 		
 		if(this.domStyles["flex-direction"]=="row") {
 			this.mainSize="width";
@@ -130,14 +129,15 @@ class layout {
 			if(isAutoMainsize) {
 				this.domStyles[this.mainSize]+=itemStyles[this.mainSize];
 				flexLine.push(item);
-				if(itemStyles[this.crossSize] !== undefined)
-					flexLine.crossSpace=Math.max(
-					(flexLine.crossSpace||0), itemStyles[this.crossSize]);
+				item.computedStype=itemStyles;
+				flexLine.crossSpace=Math.max(
+					(flexLine.crossSpace||0), (itemStyles[this.crossSize]||0));
 				continue;
 			}
 
 			if(itemStyles["flex"]) {
 				flexLine.push(item);
+				item.computedStype=itemStyles;
 				flexLine.flexTotal+=Number(itemStyles["flex"]);
 			} else {
 				if(itemStyles[this.mainSize]>this.domStyles[this.mainSize])
@@ -155,11 +155,11 @@ class layout {
 					continue;
 				}
 				flexLine.push(item);
+				item.computedStype=itemStyles;
 				mainSpace-=itemStyles[this.mainSize];
 			}
-			if(itemStyles[this.crossSize] !== undefined)
-					flexLine.crossSpace=Math.max(
-					(flexLine.crossSpace||0), itemStyles[this.crossSize]);
+			flexLine.crossSpace=Math.max(
+				(flexLine.crossSpace||0), (itemStyles[this.crossSize]||0));
 		}
 		flexLine.mainSpace=mainSpace;
 		this.mainAxisAlign(flexLine);
@@ -167,7 +167,7 @@ class layout {
 		//计算交叉轴的对齐方式
 		this.crossAxisAlign(this.domStyles, flexLines);
 		//最终计算的结果
-		this.flexLines=flexLines;
+		return flexLines;
 	}
 	//设置渲染的视口尺寸
 	setViewportSize(width, height) {
@@ -176,12 +176,50 @@ class layout {
 	}
 	//渲染图片
 	print(dom) {
-		if(!dom.computedStype
+		if(dom instanceof Array) {
+			for(var i=0; i<dom.length; i++)
+				this.print(dom[i]);
+			return false;
+		}
+		if(!dom || !dom.computedStype
 			|| !this.viewport)
 			return false;
 		var img=images(dom.computedStype.width, dom.computedStype.height);
-		img.fill(Math.random()*256+100,Math.random()*256+100,Math.random()*256+100);
+		if(dom.computedStype["background-color"]) {
+			var r="",g="",b="";
+			var state=start;
+			for(var i=0; i<dom.computedStype["background-color"].length; i++) {
+				state=state(dom.computedStype["background-color"][i]);
+			}
+			function start(c) {
+				if(c=="(") return getR;
+				return start;
+			}
+			function getR(c) {
+				if(c==",") return getG;
+				if(c!=" ") r+=c;
+				return getR;
+			}
+			function getG(c) {
+				if(c==",") return getB;
+				if(c!=" ") g+=c;
+				return getG;
+			}
+			function getB(c) {
+				if(c==")") return end;
+				if(c!=" ") b+=c;
+				return getB;
+			}
+			function end() {
+				return end;
+			}
+			img.fill(r*1,g*1,b*1);
+		} else img.fill(randomColor(),randomColor(),randomColor());
 		this.viewport.draw(img, dom.computedStype.left, dom.computedStype.top);
+		
+		function randomColor() {
+			return Math.random()*201+100;
+		}
 	}
 	//保存图片
 	saveImg(imgPath) {
@@ -234,7 +272,6 @@ class layout {
 		}
 	}
 	//交叉轴的对齐方式
-	/***********BUG****************/
 	crossAxisAlign(domStyles, flexLines) {
 		var autoCrossSize=false;
 		if(!domStyles[this.crossSize]) {
@@ -244,15 +281,14 @@ class layout {
 		var crossSpace=domStyles[this.crossSize];
 		for(var i=0; i<flexLines.length; i++) {
 			if(autoCrossSize) {
-				domStyles[this.crossSize]+=flexLines[this.crossSize];
+				domStyles[this.crossSize]+=flexLines[i].crossSpace;
 				continue;
 			}
-			crossSpace-=flexLines[this.crossSize];
+			crossSpace-=flexLines[i].crossSpace;
 		}
 		if(domStyles["flex-wrap"]=="wrap-reverse") {
 			this.crossBase=domStyles[this.crossSize];
 		} else this.crossBase=0;
-		var lineSize=domStyles[this.crossSize]/flexLines.length;
 		var step=0;
 		if(domStyles["align-content"]=="flex-start");
 		if(domStyles["align-content"]=="flex-end")
@@ -272,7 +308,7 @@ class layout {
 			var lineCrossSize=
 				domStyles["align-content"]=="stretch"?
 					items.crossSpace+crossSpace/flexLines.length:
-					items[this.crossSize];
+					items.crossSpace;
 			for(var j=0; j<items.length; j++) {
 				var item=items[j];
 				var itemStyles=this.getStyles(item);
@@ -296,10 +332,10 @@ class layout {
 					itemStyles[this.crossEnd]=this.crossBase+this.crossSign*(itemStyles[this.crossSize]||lineCrossSize);
 					itemStyles[this.crossSize]=this.crossSign*(itemStyles[this.crossEnd]-itemStyles[this.crossStart]);
 				}
-				this.crossBase+=this.crossSign*(lineCrossSize+step);
-				
+
 				item.computedStype=itemStyles;
 			}
+			this.crossBase+=this.crossSign*(lineCrossSize+step);
 		}
 	}
 }

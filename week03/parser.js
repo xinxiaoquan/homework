@@ -1,5 +1,7 @@
 var cssParser=require("css");
 var LJS=require("./layout.js");
+var layout=new LJS.layout();
+layout.setViewportSize(300,300);
 
 /*
 	响应解析类已经删除（为了简洁）
@@ -180,6 +182,7 @@ class HtmlParser {
 	parse(string) {
 		for(var i=0; i<string.length; i++)
 			this.status=this.status(string[i]);
+		layout.saveImg("viewport.jpg");
 		return this.domTree;
 	}
 	//把分析后的节点转为dom
@@ -194,21 +197,9 @@ class HtmlParser {
 			this.domStack.length--;
 			if(currentToken.tagName=="style")
 				this.saveCssRules(stackTop.children[0].content);
-			if(stackTop.attrs && stackTop.attrs.id=="box") {
-				//解析CSS渲染页面
-				let l=new LJS.layout(stackTop);
-				let flexLines=l.flexLines;
-				l.setViewportSize(300,500);
-				for(let i=0; i<flexLines.length; i++) {
-				 	for(let j=0; j<flexLines[i].length; j++) {
-						let dom=flexLines[i][j];
-						//console.log(dom.computedStype);
-						l.print(dom);
-					}
-					//console.log("-------------");
-				}
-				l.saveImg("res.jpg"); 
-			}
+			//解析CSS渲染页面
+			var flexLines=layout.init(stackTop);
+			layout.print(flexLines);
 			return;
 		}
 		for(var key in currentToken) {
@@ -253,7 +244,6 @@ class HtmlParser {
 				declarations:tmp
 			});
 		}
-		//console.log(this.cssRules);
 	}
 	//添加CSS规则到DOM中
 	cssComputing(elem) {
@@ -274,6 +264,7 @@ class HtmlParser {
 					if(this.cssMatchDom(parents[k], selector[w]))
 						w++;
 					if(w==selector.length) {
+						
 						isMatch=true;
 						break;
 					}
@@ -300,9 +291,10 @@ class HtmlParser {
 	}
 	//CSS选择器是否能匹配到传入的元素
 	cssMatchDom(elem, selector) {
-		if(!selector || !elem.attrs)
+		if(!selector)
 			return false;
 		if(selector.charAt(0)=="#") {
+			if(!elem.attrs) return false;
 			selector=selector.slice(1);
 			if(elem.attrs.id &&
 					elem.attrs.id==selector)
@@ -310,6 +302,7 @@ class HtmlParser {
 			else return false;
 		}
 		if(selector.charAt(0)==".") {
+			if(!elem.attrs) return false;
 			selector=selector.slice(1);
 			if(elem.attrs["class"] &&
 					elem.attrs["class"].indexOf(selector)!=-1)
@@ -317,6 +310,7 @@ class HtmlParser {
 			else return false;
 		}
 		if(selector.charAt(0)=="[") {
+			if(!elem.attrs) return false;
 			selector=selector.slice(1,-1);
 			var tmp=selector.split("=");
 			if(tmp[0]=="class")
